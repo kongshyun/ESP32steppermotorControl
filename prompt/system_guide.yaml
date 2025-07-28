@@ -1,0 +1,35 @@
+system_name: esp32_motor_control
+
+description: |
+  UART로 받은 명령을 ESP32로 전송하여 스테퍼 모터를 제어하는 시스템입니다.
+  Qt로 부터 받은 명령을 통해 스테퍼 모터를 움직이고, 상태 전송을 한다.
+
+Hardware:
+  - ESP32 개발 보드 :esp32 dev
+  - 스테퍼 모터: Nema23 5756
+  - 드라이버: TB6600
+  - 연결 케이블: USB to UART
+  - 전원 공급 장치 : 24V DC SMPS
+  - LED: 4개
+
+wiring:
+  - GPIO16 - TB6600 ENA+
+  - GPIO17 - TB6600 DIR+
+  - GPIO18 - TB6600 PUL+
+  - GND - TB6600 GND, ENA-, DIR-, PUL-
+  - ESP32의 UART 핀에 USB to UART 연결
+  - 스테퍼 모터와 TB6600 드라이버 연결
+  - TB6600 드라이버와 ESP32 연결
+  - LED 연결: GPIO2,4,5,15
+
+테스트모드:
+  - 매크로를 사용해 LED에 신호 보내기
+
+실제구동모드:
+  - Qt에서 명령을 보내면 ESP32가 스테퍼 모터를 제어
+  - ESP32는 스테퍼 모터의 상태를 LED로 표시
+
+
+
+참고:
+  - 현재는 스테퍼 모터가 연결되어 있지 않았으므로, 수신 송신 확인을 위해 수신 받으면 상태에 따라 각 LED에 불들어오게 표시.

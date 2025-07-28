@@ -1,0 +1,44 @@
+ Qt to ESP32 명령 형식
+
+1. 연결 초기화
+  - 명령: HELLO
+  - 응답: READY
+  - 용도: ESP32와 초기 연결 확인
+
+2. 모터 구동 명령
+
+  회전 모드 (Rotation Mode)
+
+  - 명령: RPM:{rpm} ROT:{rotations}
+  - 예시: RPM:100 ROT:50 (100 RPM으로 50회전)
+  - 응답:
+    - TURN:X (진행 중, X는 현재 회전수)
+    - DONE (완료)
+    - STOPPED (정지됨)
+
+  시간 모드 (Time Mode)
+
+  - 명령: RPM:{rpm} TIME:{duration}
+  - 예시: RPM:200 TIME:30 (200 RPM으로 30초간 구동)
+  - 응답: 동일 (TURN:X, DONE, STOPPED)
+
+3. 제어 명령
+
+  - 정지: STOP
+    - 용도: 모터 즉시 정지 또는 일시정지
+  - 연결 종료: CLOSE
+    - 용도: 시리얼 포트 종료 시 전송
+  - 재시작: RELOAD
+    - 용도: 모터 재시작 (구현 예정)
+
+4. 테스트 명령
+
+  - 연결 테스트: HI
+  - 용도: 연결 상태 확인용
+
+5. ESP32 응답 형식
+
+  - READY: 연결 준비 완료
+  - TURN:{count}: 현재 진행 상황 (회전수)
+  - DONE: 작업 완료
+  - STOPPED: 정지됨 (수동 또는 자동)

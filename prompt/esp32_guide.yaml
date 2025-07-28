@@ -1,0 +1,206 @@
+# ESP32 Stepper Motor Control System Development Guide
+# Qt GUI와 연동하는 Nema23 스테퍼 모터 제어 시스템
+
+project:
+  name: "ESP32 Stepper Motor Controller"
+  description: "Qt GUI 애플리케이션과 UART 통신하여 Nema23 스테퍼 모터를 제어하는 ESP32 시스템"
+  target_hardware: "ESP32 + Nema23 Stepper Motor"
+
+communication:
+  protocol: "UART Serial"
+  settings:
+    baud_rate: 115200
+    data_bits: 8
+    parity: "None" 
+    stop_bits: 1
+    flow_control: "None"
+  direction: "Bidirectional (Qt GUI ↔ ESP32)"
+
+# Qt GUI에서 ESP32로 전송하는 명령어들
+incoming_commands:
+  connection:
+    hello:
+      receive: "HELLO"
+      response: "READY"
+      description: "연결 확인 및 초기 핸드셰이크"
+    
+    hi:
+      receive: "HI"
+      response: "(no response required)"
+      description: "연결 설정 완료"
+
+  motor_control:
+    rotation_mode:
+      format: "RPM:{rpm_value} ROT:{rotation_count}"
+      example: "RPM:100 ROT:5"
+      description: "100 RPM으로 5회전"
+      parsing:
+        rpm: "'{rpm_value}' 부분을 정수로 추출"
+        rotations: "'{rotation_count}' 부분을 정수로 추출"
+
+    time_mode:
+      format: "RPM:{rpm_value} TIME:{seconds}"
+      example: "RPM:150 TIME:30" 
+      description: "150 RPM으로 30초간 구동"
+      parsing:
+        rpm: "'{rpm_value}' 부분을 정수로 추출"
+        time: "'{seconds}' 부분을 정수로 추출"
+
+    control:
+      stop:
+        receive: "STOP"
+        action: "모터 일시정지"
+        response: "STOPPED"
+      
+      reload:
+        receive: "RELOAD"  
+        action: "일시정지된 모터 재개"
+        response: "(continue operation)"
+      
+      close:
+        receive: "CLOSE"
+        action: "모터 완전 정지 및 작업 종료"
+        response: "(operation terminated)"
+
+# ESP32에서 Qt GUI로 전송해야 하는 응답들
+outgoing_responses:
+  realtime_data:
+    load_info:
+      format: "LOAD:{percentage}%"
+      example: "LOAD:45.2%"
+      description: "모터 부하량 (0.0~100.0%)"
+      frequency: "1초마다 또는 적절한 간격"
+      data_source: "실제 전류센서 측정값 또는 시뮬레이션"
+
+  progress_tracking:
+    rotation_mode:
+      format: "TURN:{completed_rotations}"
+      example: "TURN:3"
+      description: "현재 완료된 회전수 (0부터 시작)"
+      timing: "각 회전 완료 시점"
+      
+    time_mode:
+      format: "TURN:{elapsed_seconds}"
+      example: "TURN:15"
+      description: "경과된 시간(초) (0부터 시작)"  
+      timing: "매초 또는 주기적으로"
+
+  status_messages:
+    completion:
+      message: "DONE"
+      trigger: "설정된 목표 달성 시 (회전수 완료 또는 시간 완료)"
+      
+    paused:
+      message: "STOPPED" 
+      trigger: "STOP 명령으로 일시정지된 상태"
+
+hardware_requirements:
+  mandatory:
+    - "ESP32 개발보드"
+    - "Nema23 스테퍼 모터"
+    - "스테퍼 모터 드라이버 (A4988, DRV8825, TMC2208 등)"
+    - "적절한 전원 공급장치"
+    
+  optional:
+    - "전류/부하 센서 (없으면 시뮬레이션으로 대체)"
+    - "리미트 스위치"
+    - "LCD 디스플레이 (디버깅용)"
+
+core_functions:
+  command_parsing:
+    description: "수신된 UART 문자열을 파싱하여 명령어와 매개변수 추출"
+    examples:
+      - input: "RPM:100 ROT:5"
+        output: "rpm=100, rotations=5, mode=ROTATION"
+      - input: "RPM:150 TIME:30"
+        output: "rpm=150, time_seconds=30, mode=TIME"
+
+  motor_control_logic:
+    rpm_to_delay_calculation:
+      description: "RPM 값을 스테퍼 모터 딜레이로 변환"
+      formula: "delay_microseconds = (60 * 1000000) / (rpm * steps_per_revolution)"
+      
+    rotation_to_steps:
+      description: "회전수를 총 스텝 수로 변환"
+      formula: "total_steps = rotations * steps_per_revolution"
+      
+    time_based_control:
+      description: "지정된 시간 동안 모터 구동"
+      method: "millis()를 사용한 시간 추적"
+      
+    acceleration_curve:
+      description: "부드러운 가속/감속 (선택사항)"
+      implementation: "점진적 딜레이 변경"
+
+  progress_tracking:
+    rotation_mode:
+      method: "완료된 스텝 수 카운트 → 회전수 계산"
+      update_timing: "각 회전 완료 시점"
+      
+    time_mode:
+      method: "millis() 기반 경과 시간 계산"
+      update_timing: "매초 또는 주기적"
+
+  realtime_communication:
+    load_transmission:
+      frequency: "1초 간격 권장"
+      format: "LOAD:XX.X%"
+      implementation: "논블로킹 타이머 기반"
+      
+    progress_updates:
+      trigger: "진행률 변경 시"
+      format: "TURN:N"
+      
+    non_blocking_design:
+      requirement: "모터 제어와 통신이 동시 실행되어야 함"
+      method: "인터럽트 또는 타이머 기반 구현"
+
+state_management:
+  states:
+    IDLE:
+      description: "대기 상태, 명령 대기 중"
+      led_indicator: "파란색 (선택사항)"
+      
+    RUNNING:
+      description: "모터 구동 중"
+      led_indicator: "초록색 (선택사항)"
+      data_transmission: "LOAD, TURN 메시지 주기적 전송"
+      
+    PAUSED:
+      description: "일시정지 상태"
+      led_indicator: "노란색 (선택사항)"
+      resume_capability: "RELOAD 명령으로 재개 가능"
+      
+    COMPLETED:
+      description: "작업 완료 상태"
+      led_indicator: "흰색 (선택사항)"
+      final_message: "DONE 전송 후 IDLE로 전환"
+
+operation_scenarios:
+  rotation_mode_example:
+    command: "RPM:100 ROT:3"
+    sequence:
+      - "모터 시작 (100 RPM)"
+      - "매초 전송: 'LOAD:45.2%'"
+      - "초기: 'TURN:0'"
+      - "1회전 완료: 'TURN:1'"
+      - "2회전 완료: 'TURN:2'" 
+      - "3회전 완료: 'TURN:3', 'DONE'"
+      
+  time_mode_example:
+    command: "RPM:150 TIME:10"
+    sequence:
+      - "모터 시작 (150 RPM)"
+      - "1초 후: 'LOAD:38.7%'"
+      - "2초 후: 'LOAD:42.1%'"
+      - "..."
+      - "10초 후: 'LOAD:39.5%', 'DONE'"
+      
+  pause_resume_example:
+    sequence:
+      - "구동 중 수신: 'STOP'"
+      - "모터 정지, 전송: 'STOPPED'"
+      - "현재 진행률 저장"
+      - "수신: 'RELOAD'"
+      - "모터 재개, 저장된 진행률부터 계속"
+
